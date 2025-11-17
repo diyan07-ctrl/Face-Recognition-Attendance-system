@@ -1,14 +1,16 @@
 import csv
+import os
 from tkinter import messagebox
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 def file_path(acc_type) -> str:
     if acc_type == "admin":
-        file_path_of_acc = "../Data/Users/login_admin.csv"
+        file_path_of_acc = os.path.join(BASE_DIR, "../Data/Users/login_admin.csv")
     elif acc_type == "prof":
-        file_path_of_acc = "../Data/Users/login_professor.csv"
+        file_path_of_acc = os.path.join(BASE_DIR, "../Data/Users/login_professor.csv")
     else:
-        file_path_of_acc = "../Data/Users/login_TA.csv"
+        file_path_of_acc = os.path.join(BASE_DIR, "../Data/Users/login_TA.csv")
     return file_path_of_acc
 
 

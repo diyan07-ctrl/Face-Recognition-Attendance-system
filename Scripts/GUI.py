@@ -1,9 +1,12 @@
+from logging import exception
+from string import whitespace
 from typing import Dict, Optional
 import tkinter as tk
 from tkinter import messagebox
 import Utils.account_manager as account_manager
 import Utils.class_manager as class_manager
 from Utils.helpers import add_placeholder as ghost_text
+import pandas as pd
 
 # Declaring colours and fonts for multiple uses
 BG_ROOT = '#870903'
@@ -72,6 +75,10 @@ class App(tk.Tk):
         login_page: LoginPage = self.frames["LoginPage"]  # type: ignore
         login_page.set_user_type(user_type)
         self.show_frame("LoginPage")
+
+    def store_class_name(self, class_name: str) -> None:
+        self.current_class = class_name
+
 
     def on_login_success(self, username: str, user_type: str) -> None:  # Different dashboards for different users
         self.current_username = username
@@ -322,7 +329,7 @@ class ClassesPage(StyledCanvasFrame):
         self.start_button = tk.Button(self, text="View", font=FONT_BUTTON, bg=BUTTON_BG, fg="white",
                                       borderwidth=4, activebackground=BUTTON_ACTIVE, activeforeground="white",
                                       relief="raised",
-                                      width=18, height=2, command=lambda: self.show_classes())
+                                      width=18, height=2, command=lambda: self.proceed_to_dashboard())
 
         self.canvas.create_window(512, 520, window=logout_btn)
         self.canvas.create_window(512, 450, window=self.start_button)
@@ -330,8 +337,25 @@ class ClassesPage(StyledCanvasFrame):
     def on_show(self):  # Refreshes the list everytime the frame gets loaded
         self.show_classes()
 
+
+    def proceed_to_dashboard(self):
+        selection = str(self.classes[self.class_list.curselection()[0]][0])
+
+        if not selection:
+            messagebox.showwarning("Warning", "No account selected.")
+        else:
+            if self.controller.current_user_type == "prof":
+                self.controller.store_class_name(selection)
+                self.controller.show_frame("ProfessorDashboard")
+            else:
+
+                self.controller.store_class_name(selection)
+                self.controller.show_frame("TADashboard")
+
+
+
     def show_classes(self) -> None:  # Almost the same as show accounts in DeleteAccountPage
-        classes = list((list(value.values()) for value in
+        self.classes = list((list(value.values()) for value in
                         class_manager.retrieve_classes(self.controller.current_username,
                                                        self.controller.current_user_type)))
 
@@ -349,8 +373,8 @@ class ClassesPage(StyledCanvasFrame):
         scrollbar.pack(side="right", fill="y")
         self.class_list.pack(side="left", fill="both", expand=True)
 
-        for i in range(len(classes)):
-            self.class_list.insert(tk.END, f"{classes[i][0]}: {classes[i][1]} - {classes[i][3]:>10}")
+        for i in range(len(self.classes)):
+            self.class_list.insert(tk.END, f"{self.classes[i][0]}: {self.classes[i][1]}")
 
         # Place the entire frame on canvas
         self.canvas.create_window(512, 280, window=self.class_list_frame)
@@ -359,95 +383,115 @@ class ClassesPage(StyledCanvasFrame):
 class ProfessorDashboard(StyledCanvasFrame):
     def __init__(self, parent: tk.Widget, controller: App) -> None:
         super().__init__(parent, controller)
-        self.place_title("Dashboard")
+        self.place_title("")
 
-        self.class_list_frame = None  # Pre-declaring the list so we don't get any error while trying to delete the old list in show accounts
-        self.class_list = None  # Not necessary but makes the program more reliable
+        self.class_data_frame = None  # Pre-declaring the list so we don't get any error while trying to delete the old list in show accounts
+        self.class_data = None  # Not necessary but makes the program more reliable
 
         logout_btn = tk.Button(self, text="Logout", font=FONT_SMALL, bg=BG_ROOT, fg="white", borderwidth=0,
                                command=lambda: controller.show_frame("HomePage"))
-        self.start_button = tk.Button(self, text="View", font=FONT_BUTTON, bg=BUTTON_BG, fg="white",
+        self.start_button = tk.Button(self, text="Take Attendance", font=FONT_BUTTON, bg=BUTTON_BG, fg="white",
                                       borderwidth=4, activebackground=BUTTON_ACTIVE, activeforeground="white",
                                       relief="raised",
-                                      width=18, height=2, command=lambda: self.show_classes())
+                                      width=18, height=2, command=lambda: self.show_class_data())
 
         self.canvas.create_window(512, 520, window=logout_btn)
         self.canvas.create_window(512, 450, window=self.start_button)
 
     def on_show(self):  # Refreshes the list everytime the frame gets loaded
-        self.show_classes()
+        self.show_class_data()
 
-    def show_classes(self) -> None:  # Almost the same as show accounts in DeleteAccountPage
-        classes = list((list(value.values()) for value in
-                        class_manager.retrieve_classes(self.controller.current_username,
-                                                       self.controller.current_user_type)))
+    def show_class_data(self) -> None:  # Almost the same as show accounts in DeleteAccountPage
 
-        if self.class_list_frame:
-            self.class_list_frame.destroy()  # Destroy any previously loaded list
+        try:
+            class_data = pd.DataFrame(class_manager.retrieve_class_attendance(self.controller.current_class))
+        except Exception as e:
+            class_data = {}
+            print(e)
 
-        self.class_list_frame = tk.Frame(self, bg='white')  # creating a frame to hold both list and scroll bar
+        print(class_data)
 
-        scrollbar = tk.Scrollbar(self.class_list_frame, orient="vertical")
-        self.class_list = tk.Listbox(self.class_list_frame, width=45, height=8, font=("Arial", 14, "bold"),
+        if self.class_data_frame:
+            self.class_data_frame.destroy()  # Destroy any previously loaded list
+
+        self.class_data_frame = tk.Frame(self, bg='white')  # creating a frame to hold both list and scroll bar
+
+        scrollbar = tk.Scrollbar(self.class_data_frame, orient="vertical")
+        self.class_data = tk.Listbox(self.class_data_frame, width=45, height=8, font=("Arial", 14, "bold"),
                                      bg='dark grey', fg='black',
                                      yscrollcommand=scrollbar.set)
-        scrollbar.config(command=self.class_list.yview)
+        scrollbar.config(command=self.class_data.yview)
 
         scrollbar.pack(side="right", fill="y")
-        self.class_list.pack(side="left", fill="both", expand=True)
+        self.class_data.pack(side="left", fill="both", expand=True)
 
-        for i in range(len(classes)):
-            self.class_list.insert(tk.END, f"{classes[i][0]}: {classes[i][1]} - {classes[i][3]:>10}")
+        self.class_data.insert(tk.END, f"      AU ID      |         Name         |        Presence")
+        for i in range(len(class_data)):
+            roll = class_data.loc[i, "AU_id"]
+            name = class_data.loc[i, "Name"]
+            presence = list(class_data.loc[i].values).count("P")
+
+            self.class_data.insert(tk.END, f"{roll} | {name} | {presence:>10}")
 
         # Place the entire frame on canvas
-        self.canvas.create_window(512, 280, window=self.class_list_frame)
+        self.canvas.create_window(512, 280, window=self.class_data_frame)
 
 
 class TADashboard(StyledCanvasFrame):
     def __init__(self, parent: tk.Widget, controller: App) -> None:
         super().__init__(parent, controller)
-        self.place_title("Dashboard")
+        self.place_title("")
 
-        self.class_list_frame = None  # Pre-declaring the list so we don't get any error while trying to delete the old list in show accounts
-        self.class_list = None  # Not necessary but makes the program more reliable
+        self.class_data_frame = None  # Pre-declaring the list so we don't get any error while trying to delete the old list in show accounts
+        self.class_data = None  # Not necessary but makes the program more reliable
 
         logout_btn = tk.Button(self, text="Logout", font=FONT_SMALL, bg=BG_ROOT, fg="white", borderwidth=0,
                                command=lambda: controller.show_frame("HomePage"))
-        self.start_button = tk.Button(self, text="View", font=FONT_BUTTON, bg=BUTTON_BG, fg="white",
+        self.start_button = tk.Button(self, text="Take Attendance", font=FONT_BUTTON, bg=BUTTON_BG, fg="white",
                                       borderwidth=4, activebackground=BUTTON_ACTIVE, activeforeground="white",
                                       relief="raised",
-                                      width=18, height=2, command=lambda: self.show_classes())
+                                      width=18, height=2, command=lambda: self.show_class_data())
 
         self.canvas.create_window(512, 520, window=logout_btn)
         self.canvas.create_window(512, 450, window=self.start_button)
 
     def on_show(self):  # Refreshes the list everytime the frame gets loaded
-        self.show_classes()
+        self.show_class_data()
 
-    def show_classes(self) -> None:  # Almost the same as show accounts in DeleteAccountPage
-        classes = list((list(value.values()) for value in
-                        class_manager.retrieve_classes(self.controller.current_username,
-                                                       self.controller.current_user_type)))
+    def show_class_data(self) -> None:  # Almost the same as show accounts in DeleteAccountPage
 
-        if self.class_list_frame:
-            self.class_list_frame.destroy()  # Destroy any previously loaded list
+        try:
+            class_data = pd.DataFrame(class_manager.retrieve_class_attendance(self.controller.current_class))
+        except Exception as e:
+            class_data = {}
+            print(e)
 
-        self.class_list_frame = tk.Frame(self, bg='white')  # creating a frame to hold both list and scroll bar
+        print(class_data)
 
-        scrollbar = tk.Scrollbar(self.class_list_frame, orient="vertical")
-        self.class_list = tk.Listbox(self.class_list_frame, width=45, height=8, font=("Arial", 14, "bold"),
+        if self.class_data_frame:
+            self.class_data_frame.destroy()  # Destroy any previously loaded list
+
+        self.class_data_frame = tk.Frame(self, bg='white')  # creating a frame to hold both list and scroll bar
+
+        scrollbar = tk.Scrollbar(self.class_data_frame, orient="vertical")
+        self.class_data = tk.Listbox(self.class_data_frame, width=45, height=8, font=("Arial", 14, "bold"),
                                      bg='dark grey', fg='black',
                                      yscrollcommand=scrollbar.set)
-        scrollbar.config(command=self.class_list.yview)
+        scrollbar.config(command=self.class_data.yview)
 
         scrollbar.pack(side="right", fill="y")
-        self.class_list.pack(side="left", fill="both", expand=True)
+        self.class_data.pack(side="left", fill="both", expand=True)
 
-        for i in range(len(classes)):
-            self.class_list.insert(tk.END, f"{classes[i][0]}: {classes[i][1]} - {classes[i][3]:>10}")
+        self.class_data.insert(tk.END, f"      AU ID      |         Name         |        Presence")
+        for i in range(len(class_data)):
+            roll = class_data.loc[i, "AU_id"]
+            name = class_data.loc[i, "Name"]
+            presence = list(class_data.loc[i].values).count("P")
+
+            self.class_data.insert(tk.END, f"{roll} | {name} | {presence:>15}")
 
         # Place the entire frame on canvas
-        self.canvas.create_window(512, 280, window=self.class_list_frame)
+        self.canvas.create_window(512, 280, window=self.class_data_frame)
 
 
 if __name__ == "__main__":
