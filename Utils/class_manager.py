@@ -46,6 +46,7 @@ def store_attendance(data: DataFrame, class_name, in_out: str):
             status = "P" if (str(pin).strip() != "" and str(pout).strip() != "") else "A"
             student_attendance.loc[student_attendance["AU_id"] == au_id, _date] = status
     else:
+        print("Student attendance data not found")
 
 
     try:
