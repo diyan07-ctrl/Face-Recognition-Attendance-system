@@ -37,7 +37,14 @@ def store_attendance(data: DataFrame, class_name, in_out: str):
     print(student_data)
 
     if str(data.loc[0, 'Date'])+"_in" in student_data.columns and str(data.loc[0, 'Date'])+"_out" in student_data.columns:
-        print(f"Column '{column_name_to_check}' exists in the DataFrame.")
+        for i, row in student_data.iterrows():
+            au_id = row["AU_id"]
+
+            pin = row.get(f"{_date}_in", "")
+            pout = row.get(f"{_date}_out", "")
+
+            status = "P" if (str(pin).strip() != "" and str(pout).strip() != "") else "A"
+            student_attendance.loc[student_attendance["AU_id"] == au_id, _date] = status
     else:
 
 
@@ -45,7 +52,7 @@ def store_attendance(data: DataFrame, class_name, in_out: str):
         for i in range(len(data)):
             _id = data.loc[i, "Id"]
             _time = data.loc[i, "Time"]
-            student_data.loc[student_data["AU_id"] == "_id", _date] = _time
+            student_data.loc[student_data["AU_id"] == _id, _date] = _time
         return True
     except Exception as e:
         print(e)
