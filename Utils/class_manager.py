@@ -36,6 +36,11 @@ def store_attendance(data: DataFrame, class_name, in_out: str):
     student_attendance[_date] = ""
     print(student_data)
 
+    if str(data.loc[0, 'Date'])+"_in" in student_data.columns and str(data.loc[0, 'Date'])+"_out" in student_data.columns:
+        print(f"Column '{column_name_to_check}' exists in the DataFrame.")
+    else:
+
+
     try:
         for i in range(len(data)):
             _id = data.loc[i, "Id"]
