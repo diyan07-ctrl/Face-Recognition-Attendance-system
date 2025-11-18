@@ -19,7 +19,10 @@ def retrieve_classes(user:str, acc_type: str) -> list:
 
 
 def retrieve_class_attendance(_class: str):
-    print(_class)
     file_path=os.path.join(BASE_DIR, "../Data/Attendance/"+_class+"_attendance.xlsx")
-    print
     return pd.read_excel(file_path)
+
+def store_attendance(_class: str):
+    print("WIP")
+
+def add_student(au)

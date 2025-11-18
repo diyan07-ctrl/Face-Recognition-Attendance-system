@@ -1,5 +1,3 @@
-from logging import exception
-from string import whitespace
 from typing import Dict, Optional
 import tkinter as tk
 from tkinter import messagebox
@@ -7,41 +5,29 @@ import Utils.account_manager as account_manager
 import Utils.class_manager as class_manager
 from Utils.helpers import add_placeholder as ghost_text
 import pandas as pd
-
-# Declaring colours and fonts for multiple uses
-BG_ROOT = '#870903'
-CANVAS_BG = '#F9DD9C'  # F2D7D5
-PANEL_FILL = '#F2D7D5'  # F9DD9C
-PANEL_HEADER = '#E90C00'
-BUTTON_BG = '#E90C00'
-BUTTON_ACTIVE = '#870903'
-ENTRY_BG = 'dark grey'
-FONT_HEADER = ("Zain", 30, "bold")
-FONT_TITLE = ("Zain", 40, "bold")
-FONT_BUTTON = ("Lexend", 14, "bold")
-FONT_SMALL = ("Lexend", 12)
+import recognize
 
 
-# Defining the main app as a class
 class App(tk.Tk):
     def __init__(self) -> None:
         super().__init__()
         self.title("Attendance System")
         self.geometry("1024x720")
-        self.configure(bg=BG_ROOT)
+        self.configure(bg='#870903')
         self.resizable(False, False)
 
-        header = tk.Label(self, text="Attendance System", font=FONT_TITLE, bg=BG_ROOT, fg="white")
+        header = tk.Label(self, text="Attendance System", font=("Zain", 40, "bold"), bg='#870903', fg="white")
         header.pack(pady=(10, 10))
 
         # container for pages
-        container = tk.Frame(self, bg=BG_ROOT)
+        container = tk.Frame(self, bg='#870903')
         container.pack(fill="both", expand=True)
 
         # store pages
         self.frames: Dict[str, tk.Frame] = {}
         self.current_user_type: Optional[str] = None
         self.current_username: Optional[str] = None
+        self.current_class: Optional[str] = None
 
         # Page list for switching frames
         for P in (
@@ -52,7 +38,8 @@ class App(tk.Tk):
                 AdminDashboard,
                 ClassesPage,
                 ProfessorDashboard,
-                TADashboard
+                TADashboard,
+                AddStudent
         ):
             page_name = P.__name__
             frame = P(parent=container, controller=self)
@@ -93,15 +80,15 @@ class App(tk.Tk):
 # While the frame allows for seamless transitions
 class StyledCanvasFrame(tk.Frame):
     def __init__(self, parent: tk.Widget, controller: App) -> None:
-        super().__init__(parent, bg=BG_ROOT)
+        super().__init__(parent, bg='#870903')
         self.controller = controller
-        self.canvas = tk.Canvas(self, width=1024, height=660, bg=CANVAS_BG, highlightthickness=0)
+        self.canvas = tk.Canvas(self, width=1024, height=660, bg='#F9DD9C', highlightthickness=0)
         self.canvas.pack(fill="both", expand=True)
-        self.canvas.create_rectangle(150, 70, 874, 560, fill=PANEL_FILL, outline="")
-        self.canvas.create_rectangle(150, 70, 874, 150, fill=PANEL_HEADER, outline="")
+        self.canvas.create_rectangle(150, 70, 874, 560, fill='#F2D7D5', outline="")
+        self.canvas.create_rectangle(150, 70, 874, 150, fill='#E90C00', outline="")
 
     def place_title(self, text: str) -> None:
-        title = tk.Label(self, text=text, font=FONT_HEADER, fg='white', bg=PANEL_HEADER, width=20)
+        title = tk.Label(self, text=text, font=("Zain", 30, "bold"), fg='white', bg='#E90C00', width=20)
         self.canvas.create_window(512, 110, window=title)
 
 
@@ -110,17 +97,17 @@ class HomePage(StyledCanvasFrame):
         super().__init__(parent, controller)
         self.place_title("Welcome")
 
-        login_prof = tk.Button(self, text="Login as Professor", font=FONT_BUTTON, bg=BUTTON_BG, fg="white",
-                               borderwidth=4, activebackground=BUTTON_ACTIVE, activeforeground="white", relief="raised",
+        login_prof = tk.Button(self, text="Login as Professor", font=("Lexend", 14, "bold"), bg='#E90C00', fg="white",
+                               borderwidth=4, activebackground='#870903', activeforeground="white", relief="raised",
                                width=18, height=2, command=lambda: controller.show_login_for("prof"))
-        login_TA = tk.Button(self, text="Login as TA", font=FONT_BUTTON, bg=BUTTON_BG, fg="white",
-                             borderwidth=4, activebackground=BUTTON_ACTIVE, activeforeground="white", relief="raised",
+        login_TA = tk.Button(self, text="Login as TA", font=("Lexend", 14, "bold"), bg='#E90C00', fg="white",
+                             borderwidth=4, activebackground='#870903', activeforeground="white", relief="raised",
                              width=18, height=2, command=lambda: controller.show_login_for("TA"))
-        login_admin = tk.Button(self, text="Login as Admin", font=FONT_BUTTON, bg=BUTTON_BG, fg="white",
-                                borderwidth=4, activebackground=BUTTON_ACTIVE, activeforeground="white",
+        login_admin = tk.Button(self, text="Login as Admin", font=("Lexend", 14, "bold"), bg='#E90C00', fg="white",
+                                borderwidth=4, activebackground='#870903', activeforeground="white",
                                 relief="raised",
                                 width=18, height=2, command=lambda: controller.show_login_for("admin"))
-        quit_button = tk.Button(self, text="Quit", font=FONT_SMALL, bg=BG_ROOT, fg="white", borderwidth=0,
+        quit_button = tk.Button(self, text="Quit", font=("Lexend", 12), bg='#870903', fg="white", borderwidth=0,
                                 command=self.controller.quit)
 
         self.canvas.create_window(512, 240, window=login_prof)
@@ -134,16 +121,16 @@ class LoginPage(StyledCanvasFrame):
         super().__init__(parent, controller)
         self._user_type: Optional[str] = None
 
-        self.username_entry = tk.Entry(self, width=22, font=("Arial", 18, "bold"), bg=ENTRY_BG)
+        self.username_entry = tk.Entry(self, width=22, font=("Arial", 18, "bold"), bg='dark grey')
         ghost_text(self.username_entry, "👤 Username")
-        self.password_entry = tk.Entry(self, width=22, font=("Arial", 18, "bold"), bg=ENTRY_BG)
+        self.password_entry = tk.Entry(self, width=22, font=("Arial", 18, "bold"), bg='dark grey')
         ghost_text(self.password_entry, "🔑 Password")
 
-        self.login_button = tk.Button(self, text="Login", font=FONT_BUTTON, bg=BUTTON_BG, fg="white",
-                                      borderwidth=4, activebackground=BUTTON_ACTIVE, activeforeground="white",
+        self.login_button = tk.Button(self, text="Login", font=("Lexend", 14, "bold"), bg='#E90C00', fg="white",
+                                      borderwidth=4, activebackground='#870903', activeforeground="white",
                                       relief="raised",
                                       width=18, height=2, command=self.attempt_login)
-        self.back_button = tk.Button(self, text="← Back", font=FONT_SMALL, bg=BG_ROOT, fg="white", borderwidth=0,
+        self.back_button = tk.Button(self, text="← Back", font=("Lexend", 12), bg='#870903', fg="white", borderwidth=0,
                                      command=lambda: self.back())
 
         self.canvas.create_window(512, 260, window=self.username_entry)
@@ -166,7 +153,7 @@ class LoginPage(StyledCanvasFrame):
         self._user_type = user_type
 
         display = {"prof": "Login (Professor)", "TA": "Login (TA)", "admin": "Login (Admin)"}
-        self.canvas.create_rectangle(150, 70, 450, 150, fill=PANEL_HEADER, outline="")
+        self.canvas.create_rectangle(150, 70, 450, 150, fill='#E90C00', outline="")
         self.place_title(display.get(self._user_type, "Login"))
 
     def attempt_login(self) -> None:
@@ -187,20 +174,20 @@ class CreateAccountPage(StyledCanvasFrame):
         super().__init__(parent, controller)
         self.place_title("Create Account")
 
-        self.username_entry = tk.Entry(self, width=18, font=("Arial", 18, "bold"), bg=ENTRY_BG)
+        self.username_entry = tk.Entry(self, width=18, font=("Arial", 18, "bold"), bg='dark grey')
         ghost_text(self.username_entry, "👤 Username")
-        self.password_entry = tk.Entry(self, width=18, font=("Arial", 18, "bold"), bg=ENTRY_BG)
+        self.password_entry = tk.Entry(self, width=18, font=("Arial", 18, "bold"), bg='dark grey')
         ghost_text(self.password_entry, "🔑 Password")
 
-        self.create_prof_acc = tk.Button(self, text="For Prof.", font=FONT_BUTTON, bg=BUTTON_BG, fg="white",
-                                         borderwidth=4, activebackground=BUTTON_ACTIVE, activeforeground="white",
+        self.create_prof_acc = tk.Button(self, text="For Prof.", font=("Lexend", 14, "bold"), bg='#E90C00', fg="white",
+                                         borderwidth=4, activebackground='#870903', activeforeground="white",
                                          relief="raised",
                                          width=18, height=2, command=lambda: self.attempt_create("prof"))
-        self.create_TA_acc = tk.Button(self, text="For TA", font=FONT_BUTTON, bg=BUTTON_BG, fg="white",
-                                       borderwidth=4, activebackground=BUTTON_ACTIVE, activeforeground="white",
+        self.create_TA_acc = tk.Button(self, text="For TA", font=("Lexend", 14, "bold"), bg='#E90C00', fg="white",
+                                       borderwidth=4, activebackground='#870903', activeforeground="white",
                                        relief="raised",
                                        width=18, height=2, command=lambda: self.attempt_create("TA"))
-        self.back_button = tk.Button(self, text="← Back", font=FONT_SMALL, bg=BG_ROOT, fg="white", borderwidth=0,
+        self.back_button = tk.Button(self, text="← Back", font=("Lexend", 12), bg='#870903', fg="white", borderwidth=0,
                                      command=lambda: self.back())
 
         self.canvas.create_window(512, 260, window=self.username_entry)
@@ -243,15 +230,15 @@ class DeleteAccountPage(StyledCanvasFrame):
         self.user_list_frame = None  # Pre-declaring the list so we don't get any error while trying to delete the old list in show accounts
         self.user_list = None  # Not necessary but makes the program more reliable
 
-        self.select_prof = tk.Radiobutton(self, text="Professor", font=FONT_BUTTON, bg=PANEL_FILL, value="prof",
+        self.select_prof = tk.Radiobutton(self, text="Professor", font=("Lexend", 14, "bold"), bg='#F2D7D5', value="prof",
                                           variable=self.account_type, command=self.show_accounts)
-        self.select_TA = tk.Radiobutton(self, text="TA", font=FONT_BUTTON, bg=PANEL_FILL, value="TA",
+        self.select_TA = tk.Radiobutton(self, text="TA", font=("Lexend", 14, "bold"), bg='#F2D7D5', value="TA",
                                         variable=self.account_type, command=self.show_accounts)
-        self.delete_button = tk.Button(self, text="Delete", font=FONT_BUTTON, bg=BUTTON_BG, fg="white",
-                                       borderwidth=4, activebackground=BUTTON_ACTIVE, activeforeground="white",
+        self.delete_button = tk.Button(self, text="Delete", font=("Lexend", 14, "bold"), bg='#E90C00', fg="white",
+                                       borderwidth=4, activebackground='#870903', activeforeground="white",
                                        relief="raised",
                                        width=18, height=2, command=self.attempt_delete)
-        self.back_button = tk.Button(self, text="← Back", font=FONT_SMALL, bg=BG_ROOT, fg="white", borderwidth=0,
+        self.back_button = tk.Button(self, text="← Back", font=("Lexend", 12), bg='#870903', fg="white", borderwidth=0,
                                      command=lambda: self.controller.show_frame("AdminDashboard"))
 
         self.canvas.create_window(512, 440, window=self.delete_button)
@@ -300,15 +287,15 @@ class AdminDashboard(StyledCanvasFrame):
         super().__init__(parent, controller)
         self.place_title("Admin Dashboard")
 
-        create_account_btn = tk.Button(self, text="Create Account", font=FONT_BUTTON, bg=BUTTON_BG, fg="white",
-                                       borderwidth=4, activebackground=BUTTON_ACTIVE, activeforeground="white",
+        create_account_btn = tk.Button(self, text="Create Account", font=("Lexend", 14, "bold"), bg='#E90C00', fg="white",
+                                       borderwidth=4, activebackground='#870903', activeforeground="white",
                                        relief="raised",
                                        width=18, height=2, command=lambda: controller.show_frame("CreateAccountPage"))
-        delete_account_btn = tk.Button(self, text="Delete Account", font=FONT_BUTTON, bg=BUTTON_BG, fg="white",
-                                       borderwidth=4, activebackground=BUTTON_ACTIVE, activeforeground="white",
+        delete_account_btn = tk.Button(self, text="Delete Account", font=("Lexend", 14, "bold"), bg='#E90C00', fg="white",
+                                       borderwidth=4, activebackground='#870903', activeforeground="white",
                                        relief="raised",
                                        width=18, height=2, command=lambda: controller.show_frame("DeleteAccountPage"))
-        logout_btn = tk.Button(self, text="Logout", font=FONT_SMALL, bg=BG_ROOT, fg="white", borderwidth=0,
+        logout_btn = tk.Button(self, text="Logout", font=("Lexend", 12), bg='#870903', fg="white", borderwidth=0,
                                command=lambda: controller.show_frame("HomePage"))
 
         self.canvas.create_window(512, 260, window=create_account_btn)
@@ -324,10 +311,10 @@ class ClassesPage(StyledCanvasFrame):
         self.class_list_frame = None  # Pre-declaring the list so we don't get any error while trying to delete the old list in show accounts
         self.class_list = None  # Not necessary but makes the program more reliable
 
-        logout_btn = tk.Button(self, text="Logout", font=FONT_SMALL, bg=BG_ROOT, fg="white", borderwidth=0,
+        logout_btn = tk.Button(self, text="Logout", font=("Lexend", 12), bg='#870903', fg="white", borderwidth=0,
                                command=lambda: controller.show_frame("HomePage"))
-        self.start_button = tk.Button(self, text="View", font=FONT_BUTTON, bg=BUTTON_BG, fg="white",
-                                      borderwidth=4, activebackground=BUTTON_ACTIVE, activeforeground="white",
+        self.start_button = tk.Button(self, text="View", font=("Lexend", 14, "bold"), bg='#E90C00', fg="white",
+                                      borderwidth=4, activebackground='#870903', activeforeground="white",
                                       relief="raised",
                                       width=18, height=2, command=lambda: self.proceed_to_dashboard())
 
@@ -383,23 +370,42 @@ class ClassesPage(StyledCanvasFrame):
 class ProfessorDashboard(StyledCanvasFrame):
     def __init__(self, parent: tk.Widget, controller: App) -> None:
         super().__init__(parent, controller)
-        self.place_title("")
+        self.title_label = None
 
-        self.class_data_frame = None  # Pre-declaring the list so we don't get any error while trying to delete the old list in show accounts
-        self.class_data = None  # Not necessary but makes the program more reliable
+        self.class_data_frame = None
+        self.class_data = None
 
-        logout_btn = tk.Button(self, text="Logout", font=FONT_SMALL, bg=BG_ROOT, fg="white", borderwidth=0,
-                               command=lambda: controller.show_frame("HomePage"))
-        self.start_button = tk.Button(self, text="Take Attendance", font=FONT_BUTTON, bg=BUTTON_BG, fg="white",
-                                      borderwidth=4, activebackground=BUTTON_ACTIVE, activeforeground="white",
-                                      relief="raised",
-                                      width=18, height=2, command=lambda: self.show_class_data())
+        self.start_button = tk.Button(self, text="Punch In", font=("Lexend", 14, "bold"), bg='#E90C00', fg="white",
+                                      borderwidth=4, activebackground='#870903', activeforeground="white",
+                                      relief="raised", width=14, height=1, command=lambda: self.take_attendance())
+        self.end_button = tk.Button(self, text="Punch Out", font=("Lexend", 14, "bold"), bg='#E90C00', fg="white",
+                                    borderwidth=4, activebackground='#870903', activeforeground="white",
+                                    relief="raised", width=14, height=1, command=lambda: self.take_attendance())
+        self.add_student_btn = tk.Button(self, text="Add Student", font=("Lexend", 14, "bold"), bg='#E90C00', fg="white",
+                                      borderwidth=4, activebackground='#870903', activeforeground="white",
+                                      relief="raised", width=14, height=1, command=lambda: controller.show_frame("AddStudent"))
+        self.delete_student_btn = tk.Button(self, text="Delete Student", font=("Lexend", 14, "bold"), bg='#E90C00', fg="white",
+                                    borderwidth=4, activebackground='#870903', activeforeground="white",
+                                    relief="raised", width=14, height=1, command=lambda: self.attempt_delete())
+        self.back_button = tk.Button(self, text="← Back", font=("Lexend", 12), bg='#870903', fg="white", borderwidth=0,
+                                     command=lambda: controller.show_frame("ClassesPage"))
 
-        self.canvas.create_window(512, 520, window=logout_btn)
-        self.canvas.create_window(512, 450, window=self.start_button)
+        self.canvas.create_window(400, 410, window=self.start_button)
+        self.canvas.create_window(620, 410, window=self.end_button)
+        self.canvas.create_window(400, 460, window=self.add_student_btn)
+        self.canvas.create_window(620, 460, window=self.delete_student_btn)
+        self.canvas.create_window(512, 520, window=self.back_button)
 
     def on_show(self):  # Refreshes the list everytime the frame gets loaded
         self.show_class_data()
+
+        if self.title_label:
+            self.title_label.destroy()
+
+        class_name = self.controller.current_class
+        self.title_label = tk.Label(self, text=f"{class_name}",
+                                    font=("Zain", 30, "bold"), fg='white', bg='#E90C00')
+        self.canvas.create_window(512, 110, window=self.title_label)
 
     def show_class_data(self) -> None:  # Almost the same as show accounts in DeleteAccountPage
 
@@ -408,8 +414,6 @@ class ProfessorDashboard(StyledCanvasFrame):
         except Exception as e:
             class_data = {}
             print(e)
-
-        print(class_data)
 
         if self.class_data_frame:
             self.class_data_frame.destroy()  # Destroy any previously loaded list
@@ -431,32 +435,52 @@ class ProfessorDashboard(StyledCanvasFrame):
             name = class_data.loc[i, "Name"]
             presence = list(class_data.loc[i].values).count("P")
 
-            self.class_data.insert(tk.END, f"{roll} | {name} | {presence:>10}")
+            self.class_data.insert(tk.END, f"{roll} | {name} | {presence:>15}")
 
         # Place the entire frame on canvas
-        self.canvas.create_window(512, 280, window=self.class_data_frame)
+        self.canvas.create_window(512, 270, window=self.class_data_frame)
+
+    def take_attendance(self) -> None:
+        print(recognize.track_images())
+
+    def attempt_delete(self) -> None:
+        selection = self.class_data.curselection()
+
+        print("WIP")
 
 
 class TADashboard(StyledCanvasFrame):
     def __init__(self, parent: tk.Widget, controller: App) -> None:
         super().__init__(parent, controller)
-        self.place_title("")
+        self.title_label = None
 
-        self.class_data_frame = None  # Pre-declaring the list so we don't get any error while trying to delete the old list in show accounts
-        self.class_data = None  # Not necessary but makes the program more reliable
+        self.class_data_frame = None
+        self.class_data = None
 
-        logout_btn = tk.Button(self, text="Logout", font=FONT_SMALL, bg=BG_ROOT, fg="white", borderwidth=0,
-                               command=lambda: controller.show_frame("HomePage"))
-        self.start_button = tk.Button(self, text="Take Attendance", font=FONT_BUTTON, bg=BUTTON_BG, fg="white",
-                                      borderwidth=4, activebackground=BUTTON_ACTIVE, activeforeground="white",
-                                      relief="raised",
-                                      width=18, height=2, command=lambda: self.show_class_data())
+        self.start_button = tk.Button(self, text="Punch In", font=("Lexend", 14, "bold"), bg='#E90C00', fg="white",
+                                         borderwidth=4, activebackground='#870903', activeforeground="white",
+                                         relief="raised", width=18, height=2, command=lambda: self.take_attendance())
+        self.end_button = tk.Button(self, text="Punch Out", font=("Lexend", 14, "bold"), bg='#E90C00', fg="white",
+                                       borderwidth=4, activebackground='#870903', activeforeground="white",
+                                       relief="raised", width=18, height=2, command=lambda: self.take_attendance())
+        self.back_button = tk.Button(self, text="← Back", font=("Lexend", 12), bg='#870903', fg="white", borderwidth=0,
+                                     command=lambda: controller.show_frame("ClassesPage"))
 
-        self.canvas.create_window(512, 520, window=logout_btn)
-        self.canvas.create_window(512, 450, window=self.start_button)
+
+        self.canvas.create_window(362, 440, window=self.start_button)
+        self.canvas.create_window(662, 440, window=self.end_button)
+        self.canvas.create_window(512, 520, window=self.back_button)
 
     def on_show(self):  # Refreshes the list everytime the frame gets loaded
         self.show_class_data()
+
+        if self.title_label:
+            self.title_label.destroy()
+
+        class_name = self.controller.current_class
+        self.title_label = tk.Label(self, text=f"{class_name}",
+                                    font=("Zain", 30, "bold"), fg='white', bg='#E90C00')
+        self.canvas.create_window(512, 110, window=self.title_label)
 
     def show_class_data(self) -> None:  # Almost the same as show accounts in DeleteAccountPage
 
@@ -465,8 +489,6 @@ class TADashboard(StyledCanvasFrame):
         except Exception as e:
             class_data = {}
             print(e)
-
-        print(class_data)
 
         if self.class_data_frame:
             self.class_data_frame.destroy()  # Destroy any previously loaded list
@@ -492,6 +514,50 @@ class TADashboard(StyledCanvasFrame):
 
         # Place the entire frame on canvas
         self.canvas.create_window(512, 280, window=self.class_data_frame)
+
+
+    def take_attendance(self) -> None:
+        print(recognize.track_images())
+
+
+class AddStudent(StyledCanvasFrame):
+    def __init__(self, parent: tk.Widget, controller: App) -> None:
+        super().__init__(parent, controller)
+        self.place_title("Register Student")
+
+        self.stud_name = tk.Entry(self, width=18, font=("Arial", 18, "bold"), bg='dark grey')
+        ghost_text(self.stud_name, "Student Name")
+        self.AU_id = tk.Entry(self, width=18, font=("Arial", 18, "bold"), bg='dark grey')
+        ghost_text(self.AU_id, "Enrollment No.")
+
+        self.add_stud_btn = tk.Button(self, text="Capture Student", font=("Lexend", 14, "bold"), bg='#E90C00', fg="white",
+                                      borderwidth=4, activebackground='#870903', activeforeground="white",
+                                      relief="raised", width=18, height=2, command=lambda: self.attempt_add())
+        self.back_button = tk.Button(self, text="← Back", font=("Lexend", 12), bg='#870903', fg="white", borderwidth=0,
+                                     command=lambda: self.back())
+
+        self.canvas.create_window(512, 260, window=self.stud_name)
+        self.canvas.create_window(512, 320, window=self.AU_id)
+        self.canvas.create_window(362, 440, window=self.add_stud_btn)
+        self.canvas.create_window(512, 520, window=self.back_button)
+
+    def clear_fields(self):
+        self.stud_name.delete(0, tk.END)
+        self.AU_id.delete(0, tk.END)
+        ghost_text(self.stud_name, "Student Name")
+        ghost_text(self.AU_id, "Enrollment No.")
+        self.controller.focus_set()
+
+    def back(self):
+        self.clear_fields()
+        self.controller.show_frame("ProfessorDashboard")
+
+    def attempt_add(self) -> None:
+        student_name: str = self.stud_name.get()
+        AU_ID: str = self.AU_id.get()
+        class_name = self.controller.current_class
+
+        print(student_name, AU_ID, class_name)
 
 
 if __name__ == "__main__":
