@@ -5,3 +5,4 @@ numpy
 DateTime
 pandas
 pillow
+openpyxl

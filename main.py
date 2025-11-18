@@ -1,6 +1,5 @@
 import Initialise
 import os
-import Scripts.GUI as start
 from datetime import datetime
 import subprocess
 

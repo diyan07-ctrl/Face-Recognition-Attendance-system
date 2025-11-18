@@ -5,6 +5,8 @@ import pandas as pd
 import datetime
 import time
 
+from Scripts.register import take_images
+
 
 def track_images():
     try:

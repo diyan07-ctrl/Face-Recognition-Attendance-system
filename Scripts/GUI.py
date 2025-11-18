@@ -6,6 +6,7 @@ import Utils.class_manager as class_manager
 from Utils.helpers import add_placeholder as ghost_text
 import pandas as pd
 import recognize
+import register
 
 
 class App(tk.Tk):
@@ -326,7 +327,10 @@ class ClassesPage(StyledCanvasFrame):
 
 
     def proceed_to_dashboard(self):
-        selection = str(self.classes[self.class_list.curselection()[0]][0])
+        if len(self.class_list.curselection())>0:
+            selection = str(self.classes[self.class_list.curselection()[0]][0])
+        else:
+            selection = None
 
         if not selection:
             messagebox.showwarning("Warning", "No account selected.")
@@ -373,7 +377,7 @@ class ProfessorDashboard(StyledCanvasFrame):
         self.title_label = None
 
         self.class_data_frame = None
-        self.class_data = None
+        self.class_data_list = None
 
         self.start_button = tk.Button(self, text="Punch In", font=("Lexend", 14, "bold"), bg='#E90C00', fg="white",
                                       borderwidth=4, activebackground='#870903', activeforeground="white",
@@ -410,9 +414,9 @@ class ProfessorDashboard(StyledCanvasFrame):
     def show_class_data(self) -> None:  # Almost the same as show accounts in DeleteAccountPage
 
         try:
-            class_data = pd.DataFrame(class_manager.retrieve_class_attendance(self.controller.current_class))
+            self.class_data = pd.DataFrame(class_manager.retrieve_class_attendance(self.controller.current_class))
         except Exception as e:
-            class_data = {}
+            self.class_data = {}
             print(e)
 
         if self.class_data_frame:
@@ -421,21 +425,21 @@ class ProfessorDashboard(StyledCanvasFrame):
         self.class_data_frame = tk.Frame(self, bg='white')  # creating a frame to hold both list and scroll bar
 
         scrollbar = tk.Scrollbar(self.class_data_frame, orient="vertical")
-        self.class_data = tk.Listbox(self.class_data_frame, width=45, height=8, font=("Arial", 14, "bold"),
+        self.class_data_list = tk.Listbox(self.class_data_frame, width=45, height=8, font=("Arial", 14, "bold"),
                                      bg='dark grey', fg='black',
                                      yscrollcommand=scrollbar.set)
-        scrollbar.config(command=self.class_data.yview)
+        scrollbar.config(command=self.class_data_list.yview)
 
         scrollbar.pack(side="right", fill="y")
-        self.class_data.pack(side="left", fill="both", expand=True)
+        self.class_data_list.pack(side="left", fill="both", expand=True)
 
-        self.class_data.insert(tk.END, f"      AU ID      |         Name         |        Presence")
-        for i in range(len(class_data)):
-            roll = class_data.loc[i, "AU_id"]
-            name = class_data.loc[i, "Name"]
-            presence = list(class_data.loc[i].values).count("P")
+        self.class_data_list.insert(tk.END, f"      AU ID      |         Name         |        Presence")
+        for i in range(len(self.class_data)):
+            roll = self.class_data.loc[i, "AU_id"]
+            name = self.class_data.loc[i, "Name"]
+            presence = list(self.class_data.loc[i].values).count("P")
 
-            self.class_data.insert(tk.END, f"{roll} | {name} | {presence:>15}")
+            self.class_data_list.insert(tk.END, f"{roll} | {name} | {presence:>15}")
 
         # Place the entire frame on canvas
         self.canvas.create_window(512, 270, window=self.class_data_frame)
@@ -444,9 +448,13 @@ class ProfessorDashboard(StyledCanvasFrame):
         print(recognize.track_images())
 
     def attempt_delete(self) -> None:
-        selection = self.class_data.curselection()
+        selection = self.class_data_list.curselection()
 
-        print("WIP")
+        if not selection:
+            messagebox.showwarning("Error", "No student selected")
+        else:
+            class_manager.delete_student(self.class_data.loc[selection[0]-1,'AU_id'], self.controller.current_class)
+            self.show_class_data()
 
 
 class TADashboard(StyledCanvasFrame):
@@ -459,10 +467,10 @@ class TADashboard(StyledCanvasFrame):
 
         self.start_button = tk.Button(self, text="Punch In", font=("Lexend", 14, "bold"), bg='#E90C00', fg="white",
                                          borderwidth=4, activebackground='#870903', activeforeground="white",
-                                         relief="raised", width=18, height=2, command=lambda: self.take_attendance())
+                                         relief="raised", width=18, height=2, command=lambda: self.take_attendance("_in"))
         self.end_button = tk.Button(self, text="Punch Out", font=("Lexend", 14, "bold"), bg='#E90C00', fg="white",
                                        borderwidth=4, activebackground='#870903', activeforeground="white",
-                                       relief="raised", width=18, height=2, command=lambda: self.take_attendance())
+                                       relief="raised", width=18, height=2, command=lambda: self.take_attendance("_out"))
         self.back_button = tk.Button(self, text="← Back", font=("Lexend", 12), bg='#870903', fg="white", borderwidth=0,
                                      command=lambda: controller.show_frame("ClassesPage"))
 
@@ -516,8 +524,14 @@ class TADashboard(StyledCanvasFrame):
         self.canvas.create_window(512, 280, window=self.class_data_frame)
 
 
-    def take_attendance(self) -> None:
-        print(recognize.track_images())
+    def take_attendance(self,in_out) -> None:
+        data = recognize.track_images()
+        _class = self.controller.current_class
+        class_manager.store_attendance(data,_class,in_out)
+
+
+def validate_enrollment(char):
+    return char == "" or (char.isdigit() and len(char) <= 7)
 
 
 class AddStudent(StyledCanvasFrame):
@@ -527,9 +541,8 @@ class AddStudent(StyledCanvasFrame):
 
         self.stud_name = tk.Entry(self, width=18, font=("Arial", 18, "bold"), bg='dark grey')
         ghost_text(self.stud_name, "Student Name")
-        self.AU_id = tk.Entry(self, width=18, font=("Arial", 18, "bold"), bg='dark grey')
-        ghost_text(self.AU_id, "Enrollment No.")
-
+        self.AU_id = tk.Entry(self, width=15, font=("Arial", 18, "bold"), bg='dark grey', validate="key", validatecommand=(self.register(validate_enrollment), '%P'))
+        self.AU = tk.Label(self,text="AU", font=("Arial", 18, "bold"), bg='dark grey', relief="sunken", borderwidth=1)
         self.add_stud_btn = tk.Button(self, text="Capture Student", font=("Lexend", 14, "bold"), bg='#E90C00', fg="white",
                                       borderwidth=4, activebackground='#870903', activeforeground="white",
                                       relief="raised", width=18, height=2, command=lambda: self.attempt_add())
@@ -537,8 +550,9 @@ class AddStudent(StyledCanvasFrame):
                                      command=lambda: self.back())
 
         self.canvas.create_window(512, 260, window=self.stud_name)
-        self.canvas.create_window(512, 320, window=self.AU_id)
-        self.canvas.create_window(362, 440, window=self.add_stud_btn)
+        self.canvas.create_window(412, 320, window=self.AU)
+        self.canvas.create_window(531, 320, window=self.AU_id)
+        self.canvas.create_window(512, 440, window=self.add_stud_btn)
         self.canvas.create_window(512, 520, window=self.back_button)
 
     def clear_fields(self):
@@ -557,7 +571,12 @@ class AddStudent(StyledCanvasFrame):
         AU_ID: str = self.AU_id.get()
         class_name = self.controller.current_class
 
-        print(student_name, AU_ID, class_name)
+        if class_manager.add_student(AU_ID, student_name, class_name):
+            messagebox.showinfo("Student Added", f"{student_name} added to {class_name} successfully!\nCapturing images")
+        else:
+            messagebox.showerror("Student Not Added", f"{student_name} could not be added to {class_name}")
+        register.take_images(AU_ID,student_name)
+        self.controller.show_frame("ProfessorDashboard")
 
 
 if __name__ == "__main__":

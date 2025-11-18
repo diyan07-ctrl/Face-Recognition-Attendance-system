@@ -7,20 +7,10 @@ from PIL import Image
 import time
 
 
-def is_valid_id(s):
-    try:
-        float(s)
-        return True
-    except ValueError:
-        return False
 
 def take_images(au_id: str,stud_name: str):
     Id = au_id
     name = stud_name
-
-    if not (is_valid_id(Id) and name.isalpha()):
-        messagebox.showerror("Error", "Invalid ID or Name")
-        return
 
     cascade_path = "haarcascade_frontalface_default.xml"
     if not os.path.exists(cascade_path):
@@ -55,7 +45,6 @@ def take_images(au_id: str,stud_name: str):
     time.sleep(0.1)
     cv2.destroyAllWindows()
     cv2.waitKey(1)
-    # ------------------------------
 
     if sampleNum >= 30:
         os.makedirs("Students", exist_ok=True)
@@ -66,13 +55,13 @@ def take_images(au_id: str,stud_name: str):
         messagebox.showinfo("Success", f"Images Saved for ID: {Id}, Name: {name}")
 
         # Auto-Train Feature
-        self.train_images()
+        train_images()
     else:
         messagebox.showwarning("Capture Incomplete", f"Only {sampleNum} images were captured. Training skipped.")
 
-def train_images(self):
+def train_images():
     recognizer = cv2.face.LBPHFaceRecognizer_create()
-    faces, Ids = self.get_images_and_labels("Faces")
+    faces, Ids = get_images_and_labels("Faces")
 
     if not faces:
         messagebox.showerror("Error", "No images found for training. Please capture images first.")
@@ -85,7 +74,7 @@ def train_images(self):
 
     messagebox.showinfo("Training Complete", "Model trained successfully!")
 
-def get_images_and_labels(self, path):
+def get_images_and_labels(path):
     imagePaths = [os.path.join(path, f) for f in os.listdir(path) if f.endswith('.jpg')]
     faces, Ids = [], []
     for imagePath in imagePaths:
