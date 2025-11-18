@@ -13,5 +13,7 @@ student_attendance = pd.read_excel(student_attendance_path)
 student_data["19-11-25"+"_in"] = ""
 student_data.loc[0, "19-11-25"+"_in"] = "11.56.24"
 
+student_data.loc[student_data["AU_id"] == "AU2540002", "19-11-25"+"_in"] = "11.58.24"
+
 print(student_data)
 print(student_attendance)

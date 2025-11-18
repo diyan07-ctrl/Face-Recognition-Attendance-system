@@ -36,17 +36,19 @@ def store_attendance(data: DataFrame, class_name, in_out: str):
     student_attendance[_date] = ""
     print(student_data)
 
-    for i in range(len(data)):
-        _id = data.loc[i, "Id"]
-        _time = data.loc[i, "Time"]
-
-
-    print(student_data)
-
+    try:
+        for i in range(len(data)):
+            _id = data.loc[i, "Id"]
+            _time = data.loc[i, "Time"]
+            student_data.loc[student_data["AU_id"] == "_id", _date] = _time
+        return True
+    except Exception as e:
+        print(e)
+        return False
 
 
 def add_student(au_id: str, student_name: str, class_name: str):
-    id: str = "AU"+str(au_id)
+    _id: str = "AU"+str(au_id)
     student_data_path = os.path.join(BASE_DIR, "../Data/Attendance/"+class_name+"_data.xlsx")
     student_attendance_path = os.path.join(BASE_DIR, "../Data/Attendance/"+class_name+"_attendance.xlsx")
     print(student_data_path)
@@ -60,8 +62,8 @@ def add_student(au_id: str, student_name: str, class_name: str):
     print(pd.read_excel(student_attendance_path))
 
     try:
-        data_sheet.append((id, student_name))
-        attendance_sheet.append((id, student_name))
+        data_sheet.append((_id, student_name))
+        attendance_sheet.append((_id, student_name))
         student_data.save(student_data_path)
         student_attendance.save(student_attendance_path)
         print(pd.read_excel(student_data_path))
