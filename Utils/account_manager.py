@@ -64,14 +64,12 @@ def retrieve_accounts(acc_type: str) -> list:
 def delete_account(index: int, acc_type: str) -> bool:
     with open(file_path(acc_type), 'r') as login_data:
         rows = list(csv.reader(login_data))
-        print(rows)
 
         if 0 <= index < len(rows):
-            print(rows.pop(index))
+            rows.pop(index)
         else:
             print("Index out of bounds while deleting account")
             return False
-        print(rows)
 
         try:
             with open(file_path(acc_type), "w", newline="") as new_login_data:

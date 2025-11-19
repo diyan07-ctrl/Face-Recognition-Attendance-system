@@ -5,21 +5,36 @@ import pandas as pd
 import datetime
 import time
 
-from Scripts.register import take_images
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.dirname(SCRIPT_DIR)
+
+DATA_DIR = os.path.join(PROJECT_ROOT, "Data")
+TRAINER_PATH = os.path.join(DATA_DIR, "TrainingImageLabel", "Trainer.yml")
+CASCADE_PATH = os.path.join(DATA_DIR, "haarcascade_frontalface_default.xml")
+STUDENT_CSV = os.path.join(DATA_DIR, "Students", "Details.csv")
 
 
 def track_images():
     try:
+        if not os.path.exists(TRAINER_PATH):
+            messagebox.showerror("Error", f"Trainer.yml not found:\n{TRAINER_PATH}")
+            return
 
-        if not os.path.exists("TrainingImageLabel/Trainer.yml"):
-            messagebox.showerror("Error","Trainer.yml not found. Please train images in 'register_train.py' first.")
-        if not os.path.exists("Students/Details.csv"):
-            messagebox.showerror("Error","EmployeeDetails.csv not found. Please capture images in 'register_train.py' first.")
+        if not os.path.exists(STUDENT_CSV):
+            messagebox.showerror("Error", f"student_details.csv not found:\n{STUDENT_CSV}")
+            return
+
+        if not os.path.exists(CASCADE_PATH):
+            messagebox.showerror("Error", f"Cascade file missing:\n{CASCADE_PATH}")
+            return
 
         recognizer = cv2.face.LBPHFaceRecognizer_create()
-        recognizer.read("TrainingImageLabel/Trainer.yml")
-        faceCascade = cv2.CascadeClassifier("haarcascade_frontalface_default.xml")
-        df = pd.read_csv("Students/Details.csv", header=None, names=["Id", "Name"])
+        recognizer.read(TRAINER_PATH)
+
+        faceCascade = cv2.CascadeClassifier(CASCADE_PATH)
+
+        df = pd.read_csv(STUDENT_CSV, header=None, names=["Id", "Name"])
+
         cam = cv2.VideoCapture(0)
         font = cv2.FONT_HERSHEY_SIMPLEX
 
@@ -36,34 +51,33 @@ def track_images():
                 if conf < 50:
                     ts = time.time()
                     date = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d')
-                    timeStamp = datetime.datetime.fromtimestamp(ts).strftime('%H:%M:%S')
+                    timestamp = datetime.datetime.fromtimestamp(ts).strftime('%H:%M:%S')
 
-                    name_data = df[df['Id'] == Id]
+                    name_row = df[df['Id'] == Id]
 
-                    if not name_data.empty:
-                        name = name_data['Name'].values[0]
-                        label = f"{Id} - {name} (Present)"
-                        # Log attendance
-                        attendance.loc[len(attendance)] = [Id, name, date, timeStamp]
+                    if not name_row.empty:
+                        name = name_row['Name'].values[0]
+                        label = f"{Id} - {name}"
+                        attendance.loc[len(attendance)] = [Id, name, date, timestamp]
                     else:
-                        label = f"{Id} - Unknown (No Record)"
+                        label = f"{Id} - Unknown"
+
                 else:
                     label = "Unknown"
 
                 cv2.rectangle(im, (x, y), (x + w, y + h), (0, 255, 0), 2)
                 cv2.putText(im, label, (x, y - 10), font, 0.75, (0, 255, 0), 2)
 
-            cv2.imshow('Tracking Attendance', im)
+            cv2.imshow("Tracking Attendance", im)
+
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
 
         cam.release()
         cv2.destroyAllWindows()
 
-        # Save attendance log
         attendance.drop_duplicates(subset=['Id'], inplace=True)
         return attendance
 
     except Exception as e:
-        messagebox.showerror("Error",
-                             f"Attendance tracking failed. Ensure files exist and camera works. Error: {e}")
+        messagebox.showerror("Error", f"Attendance tracking failed.\nError: {e}")

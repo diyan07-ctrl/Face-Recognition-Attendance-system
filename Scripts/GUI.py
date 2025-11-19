@@ -381,10 +381,10 @@ class ProfessorDashboard(StyledCanvasFrame):
 
         self.start_button = tk.Button(self, text="Punch In", font=("Lexend", 14, "bold"), bg='#E90C00', fg="white",
                                       borderwidth=4, activebackground='#870903', activeforeground="white",
-                                      relief="raised", width=14, height=1, command=lambda: self.take_attendance())
+                                      relief="raised", width=14, height=1, command=lambda: self.take_attendance("_in"))
         self.end_button = tk.Button(self, text="Punch Out", font=("Lexend", 14, "bold"), bg='#E90C00', fg="white",
                                     borderwidth=4, activebackground='#870903', activeforeground="white",
-                                    relief="raised", width=14, height=1, command=lambda: self.take_attendance())
+                                    relief="raised", width=14, height=1, command=lambda: self.take_attendance("_out"))
         self.add_student_btn = tk.Button(self, text="Add Student", font=("Lexend", 14, "bold"), bg='#E90C00', fg="white",
                                       borderwidth=4, activebackground='#870903', activeforeground="white",
                                       relief="raised", width=14, height=1, command=lambda: controller.show_frame("AddStudent"))
@@ -444,8 +444,14 @@ class ProfessorDashboard(StyledCanvasFrame):
         # Place the entire frame on canvas
         self.canvas.create_window(512, 270, window=self.class_data_frame)
 
-    def take_attendance(self) -> None:
-        print(recognize.track_images())
+    def take_attendance(self, in_out) -> None:
+        data = recognize.track_images()
+        _class = self.controller.current_class
+        status = class_manager.store_attendance(data, _class, in_out)
+        if status:
+            messagebox.showinfo("Attendance Success!", "Attendance has been stored successfully.")
+        else:
+            messagebox.showerror("Error", "Attendance could not be stored.")
 
     def attempt_delete(self) -> None:
         selection = self.class_data_list.curselection()
@@ -455,6 +461,8 @@ class ProfessorDashboard(StyledCanvasFrame):
         else:
             class_manager.delete_student(self.class_data.loc[selection[0]-1,'AU_id'], self.controller.current_class)
             self.show_class_data()
+
+
 
 
 class TADashboard(StyledCanvasFrame):
@@ -527,7 +535,11 @@ class TADashboard(StyledCanvasFrame):
     def take_attendance(self,in_out) -> None:
         data = recognize.track_images()
         _class = self.controller.current_class
-        class_manager.store_attendance(data,_class,in_out)
+        status = class_manager.store_attendance(data,_class,in_out)
+        if status:
+            messagebox.showinfo("Attendance Success!", "Attendance has been stored successfully.")
+        else:
+            messagebox.showerror("Error", "Attendance could not be stored.")
 
 
 def validate_enrollment(char):
