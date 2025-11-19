@@ -46,9 +46,8 @@ def store_attendance(data: DataFrame, class_name: str, in_out: str):
 
     if punch_col not in student_data.columns:
         student_data[punch_col] = ""
-
-    pin_col = f"{date}_in"
-    pout_col = f"{date}_out"
+    if date not in student_attendance.columns:
+        student_attendance[date] = ""
 
     for i in range(len(data)):
         _id = data.loc[i, "Id"]
@@ -56,17 +55,22 @@ def store_attendance(data: DataFrame, class_name: str, in_out: str):
         student_data.loc[student_data["AU_id"] == _id, punch_col] = _time
 
     if in_out == "_out":
-        if date not in student_attendance.columns:
-            student_attendance[date] = ""
-        if pin_col in student_data.columns and pout_col in student_data.columns:
-            print("pin",student_attendance[pin_col])
-            print("pout",student_data[pout_col])
-            for i, row in student_data.iterrows():
-                print(row)
-                au_id = row["AU_id"]
-                pin = str(row.get(pin_col, "")).strip()
-                pout = str(row.get(pout_col, "")).strip()
-                student_attendance.loc[student_attendance["AU_id"] == au_id, date] = "P" if pin and pout else "A"
+        punched_out_ids = set(data["Id"].tolist())
+
+        for i, row in student_attendance.iterrows():
+            au_id = row["AU_id"]
+
+            if row.get(date, "") == "P":
+                if au_id in punched_out_ids:
+                    continue
+                else:
+                    student_attendance.loc[i, date] = "A"
+            else:
+                student_attendance.loc[i, date] = "A"
+    else:
+        for i, row in student_data.iterrows():
+            au_id = row["AU_id"]
+            student_attendance.loc[student_attendance["AU_id"] == au_id, date] = "P"
 
     print(student_attendance)
 

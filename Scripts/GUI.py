@@ -333,7 +333,7 @@ class ClassesPage(StyledCanvasFrame):
             selection = None
 
         if not selection:
-            messagebox.showwarning("Warning", "No account selected.")
+            messagebox.showwarning("Warning", "No class selected.")
         else:
             if self.controller.current_user_type == "prof":
                 self.controller.store_class_name(selection)
